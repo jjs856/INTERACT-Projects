@@ -1,0 +1,627 @@
+---
+title: "INTERACT_Vic_Health_Comparison"
+author: "Jonathan Slaney"
+date: "12/02/2020"
+output: html_document
+---
+
+```{r setup, message=FALSE,warning=FALSE, include=FALSE, results='asis'}
+
+knitr::opts_chunk$set(echo = TRUE,
+                      message = FALSE,
+                      warning = FALSE)
+
+# Pre Process Your Data
+# Add applicable packages to the R Markdown
+library(knitr)
+library(kableExtra)
+library(plyr)
+library(survey)
+library(ggplot2)
+library(reshape2)
+library(RColorBrewer)
+library(dplyr)
+library(tidyr)
+library(kableExtra)
+library(gridExtra)
+library(forcats)
+library(sjmisc)
+library(lubridate)
+library(eeptools)
+library(likert)
+library(data.table)
+library(stringr)
+
+# Set Working Directory 
+#setwd("Volumes/hkr-storage/Research/dfuller/Walkabilly/studies/INTERACT/Data/Victoria/Survey Data/")
+w2new <- read.csv("health_2vicnew_main_bfd440e.csv")
+w2ret <- read.csv("health_2vic_main_bfd440e.csv")
+w1 <- read.csv("health_1vic_main_bfd440e.csv")
+#add wav
+
+d <- bind_rows(w2new, w2ret, w1)
+
+cbPalette <- c("#999999", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7") #COLOURBLIND PALETTE 
+INTERACTPalette <- c("#1596FF", "#76D24A", "#404041", "#666666", "#EBF0F8") #ALLBRANDING 
+INTERACTPalettecont <- c("#76D24A", "#6BCB5E", "#60C472", "#55BE86", "#4AB79A", "#40B0AE", "#35AAC2", "#2AA3D6", "#1F9CEA", "#1596FF") #10 
+INTERACTPaletteSet <- c("#76D24A", "#1596FF", "#291EF8" ,"#FFD21F", "#EB2EBA","#EBF0F8", "#FF6A6A", "#AC26F2", "#1596FF", "#E5364D") #10
+INTERACTPalette3 <- c("#76D24A", "#60C472", "#4AB79A",  "#35AAC2", "#1F9CEA", "#1596FF") #6
+INTERACTPaletteYN <- c("#1596FF", "#404041", "#EBF0F8") #3
+INTERACTfade <- c("#1596FF", "#2ca0ff", "#43abff", "#5bb5ff", "#72c0ff", "#8acaff", "#a1d5ff", "#b8dfff", "#d0eaff", "#e7f4ff", "#f3f9ff", "#ffffff") #12
+INTERACTshortfade <- c("#1596FF", "#43abff", "#72c0ff",  "#a1d5ff",  "#d0eaff", "#ffffff") #6 
+INTERACTshorterfade <- c("#1596FF", "#72c0ff","#d0eaff", "#ffffff") #4
+
+```
+
+# Wave 1 and Wave 2 Comparisons
+
+## *Section 1: Transportation*
+
+## Q1: How many bicycles are kept in your household?{.tabset}
+
+### Adult bikes
+```{r, echo=FALSE}
+
+##### Setup variable name
+
+var_name <- d$transp_bikes_adults
+
+##### Table
+
+t_1 <- d %>%
+          group_by(wave_id) %>%
+            summarise(n = n(),
+                      mean = mean(var_name, na.rm = TRUE),
+                      median = median(var_name, na.rm = TRUE),
+                      sd = sd(var_name, na.rm = TRUE)) 
+
+kable(t_1)  %>%   kable_styling(bootstrap_options = "striped", full_width = T, position = "left")
+
+##### Figure
+
+ab <- ggplot(d, aes(x = var_name)) + 
+  geom_histogram(binwidth = 1, fill="#76D24A", na.rm = TRUE) + 
+  xlab("Number of bicycles for adults") 
+
+ab + facet_wrap(vars(wave_id))
+```
+
+### Children bikes
+
+```{r, echo=FALSE}
+var_name <- d$transp_bikes_kids
+
+t_1 <- d %>%
+          group_by(wave_id) %>%
+            summarise(n = n(),
+                      mean = mean(var_name, na.rm = TRUE),
+                      median = median(var_name, na.rm = TRUE),
+                      sd = sd(var_name, na.rm = TRUE)) 
+
+kable(t_1)  %>%   kable_styling(bootstrap_options = "striped", full_width = T, position = "left")
+
+cb <- ggplot(d, aes(x = var_name)) + 
+  geom_bar(fill="#76D24A", na.rm = TRUE) + xlab("Number of bicycles for children") + 
+  scale_x_continuous()
+cb + facet_wrap(vars(wave_id))  
+```
+
+## Q2: On a scale of 1 to 5, with 1 being 'very safe' and 5 being 'very dangerous', overall, how safe do you think cycling is in your city? 
+```{r, echo=FALSE}
+
+##### Setup variable name
+
+var_name <- d$bike_safety
+
+# plot bike_safety with group_by(wave_id, bike_safety_f)
+d$var_name_f <- revalue(as.factor(var_name), c("1" = "Very safe", "2" = "Somewhat safe", "3" = "Neither safe nor unsafe", "4" = "Somewhat dangerous", "5" = "Very dangerous"))
+
+var_name_f <- d$var_name_f
+
+##### Table
+
+t_1 <- d %>%
+          group_by(wave_id, var_name_f) %>%
+            summarise(n = n()) %>%
+            mutate(pct = n / sum(n))
+
+kable(t_1)  %>%   kable_styling(bootstrap_options = "striped", full_width = T, position = "left")
+
+##### Figure
+
+p <- ggplot(d, aes(var_name_f,  fill = var_name_f)) + theme(axis.text.x = element_text(angle=90, vjust = .6)) + 
+  geom_bar() +
+  scale_fill_manual(values = INTERACTPalette3) +
+  guides(fill=FALSE) +
+      ylab("Count") +
+      xlab("Perception of bicycle risk") +
+      ggtitle("Overall, how safe do you think cycling is in your city?") + 
+  facet_wrap(~ wave_id)
+plot(p)
+```
+
+## Q3: How often do you typically travel by bicycle during each season?{.tabset}
+
+### Fall
+
+```{r, echo=FALSE}
+var_name <- d$bike_freq_a
+
+t_1 <- d %>%
+          group_by(wave_id) %>%
+            summarise(n = n(),
+                      mean = mean(var_name, na.rm = TRUE),
+                      median = median(var_name, na.rm = TRUE),
+                      sd = sd(var_name, na.rm = TRUE)) 
+
+kable(t_1)  %>%   kable_styling(bootstrap_options = "striped", full_width = T, position = "left")
+
+p2 <- ggplot(d, aes(var_name)) + 
+  theme(axis.text.x = element_text(angle=90, vjust = .6)) + 
+  geom_histogram(fill="#76D24A") +
+  scale_fill_manual() +
+  guides(fill=FALSE) +
+      ylab("Count") +
+      xlab("Bicycling number of days in fall") +
+      ggtitle("How often do you typically travel by bicycle during the fall?") + 
+  facet_wrap(~ wave_id)
+plot(p2)
+```
+
+### Winter
+
+```{r, echo=FALSE}
+var_name <- d$bike_freq_b
+
+t_1 <- d %>%
+          group_by(wave_id) %>%
+            summarise(n = n(),
+                      mean = mean(var_name, na.rm = TRUE),
+                      median = median(var_name, na.rm = TRUE),
+                      sd = sd(var_name, na.rm = TRUE)) 
+
+kable(t_1)  %>%   kable_styling(bootstrap_options = "striped", full_width = T, position = "left")
+
+p2 <- ggplot(d, aes(var_name)) + 
+  theme(axis.text.x = element_text(angle=90, vjust = .6)) + 
+  geom_histogram(fill="#76D24A") +
+  scale_fill_manual() +
+  guides(fill=FALSE) +
+      ylab("Count") +
+      xlab("Bicycling number of days in winter") +
+      ggtitle("How often do you typically travel by bicycle during the winter?") + 
+  facet_wrap(~ wave_id)
+plot(p2)
+```
+
+### Spring
+
+```{r, echo=FALSE}
+var_name <- d$bike_freq_c
+
+t_1 <- d %>%
+          group_by(wave_id) %>%
+            summarise(n = n(),
+                      mean = mean(var_name, na.rm = TRUE),
+                      median = median(var_name, na.rm = TRUE),
+                      sd = sd(var_name, na.rm = TRUE)) 
+
+kable(t_1)  %>%   kable_styling(bootstrap_options = "striped", full_width = T, position = "left")
+
+p2 <- ggplot(d, aes(var_name)) + 
+  theme(axis.text.x = element_text(angle=90, vjust = .6)) + 
+  geom_histogram(fill="#76D24A") +
+  scale_fill_manual() +
+  guides(fill=FALSE) +
+      ylab("Count") +
+      xlab("Bicycling number of days in spring") +
+      ggtitle("How often do you typically travel by bicycle during the spring?") + 
+  facet_wrap(~ wave_id)
+plot(p2)
+```
+
+### Summer
+
+```{r, echo=FALSE}
+var_name <- d$bike_freq_d
+
+t_1 <- d %>%
+          group_by(wave_id) %>%
+            summarise(n = n(),
+                      mean = mean(var_name, na.rm = TRUE),
+                      median = median(var_name, na.rm = TRUE),
+                      sd = sd(var_name, na.rm = TRUE)) 
+
+kable(t_1)  %>%   kable_styling(bootstrap_options = "striped", full_width = T, position = "left")
+
+p2 <- ggplot(d, aes(var_name)) + 
+  theme(axis.text.x = element_text(angle=90, vjust = .6)) + 
+  geom_histogram(fill="#76D24A") +
+  scale_fill_manual() +
+  guides(fill=FALSE) +
+      ylab("Count") +
+      xlab("Bicycling number of days in summer") +
+      ggtitle("How often do you typically travel by bicycle during the summer?") + 
+  facet_wrap(~ wave_id)
+plot(p2)
+```
+
+## Q4: How often are your cycling trips made with children?
+
+```{r, echo=FALSE}
+##### Setup variable name
+
+var_name <- d$bike_children
+
+d$var_name_f <- revalue(as.factor(var_name), c("1" = "Never", "2" = "Sometimes", "3" = "Often", "4" = "Always"))
+
+var_name_f <- d$var_name_f
+
+##### Table
+
+t_1 <- d %>%
+          group_by(wave_id, var_name_f) %>%
+            summarise(n = n()) %>%
+            mutate(pct = n / sum(n))
+
+kable(t_1)  %>%   kable_styling(bootstrap_options = "striped", full_width = T, position = "left")
+
+##### Figure
+
+p <- ggplot(d, aes(var_name_f,  fill = var_name_f)) + theme(axis.text.x = element_text(angle=90, vjust = .6)) + 
+  geom_bar() +
+  scale_fill_manual(values = INTERACTPalette3) +
+  guides(fill=FALSE) +
+      ylab("Count") +
+      xlab("Perception of bicycle risk") +
+      ggtitle("How often are your cycling trips made with children?") + 
+  facet_wrap(~ wave_id)
+plot(p)
+```
+
+## Q5: Do you currently use any of the following roads when you bike in Victoria?{.tabset}
+
+### Cook St or Fifth St
+
+```{r, echo=FALSE}
+
+var_name <- d$vicroads_a
+
+d$var_name_f <- revalue(as.factor(var_name), c("1" = "Yes", "2" = "No", "77" = "Don't know"))
+
+var_name_f <- d$var_name_f
+
+##### Table
+
+t_1 <- d %>%
+          group_by(wave_id, var_name_f) %>%
+            summarise(n = n()) %>%
+            mutate(pct = n / sum(n))
+
+kable(t_1)  %>%   kable_styling(bootstrap_options = "striped", full_width = T, position = "left")
+
+##### Figure
+
+p <- ggplot(d, aes(var_name_f,  fill = var_name_f)) + theme(axis.text.x = element_text(angle=90, vjust = .6)) + 
+  geom_bar() +
+  scale_fill_manual(values = INTERACTPalette3) +
+  guides(fill=FALSE) +
+      ylab("Count") +
+      xlab("Cook Street or Fifth Street") +
+      ggtitle("Do you currently use any of the following roads") + 
+  facet_wrap(~ wave_id)
+plot(p)
+```
+
+### Fairfield Rd or Humboldt St
+
+```{r, echo=FALSE}
+
+var_name <- d$vicroads_b
+
+d$var_name_f <- revalue(as.factor(var_name), c("1" = "Yes", "2" = "No", "77" = "Don't know"))
+
+var_name_f <- d$var_name_f
+
+##### Table
+
+t_1 <- d %>%
+          group_by(wave_id, var_name_f) %>%
+            summarise(n = n()) %>%
+            mutate(pct = n / sum(n))
+
+kable(t_1)  %>%   kable_styling(bootstrap_options = "striped", full_width = T, position = "left")
+
+##### Figure
+
+p <- ggplot(d, aes(var_name_f,  fill = var_name_f)) + theme(axis.text.x = element_text(angle=90, vjust = .6)) + 
+  geom_bar() +
+  scale_fill_manual(values = INTERACTPalette3) +
+  guides(fill=FALSE) +
+      ylab("Count") +
+      xlab("Fairfield Road or Humboldt Street") +
+      ggtitle("Do you currently use any of the following roads") + 
+  facet_wrap(~ wave_id)
+plot(p)
+```
+
+### Fort St
+
+```{r, echo=FALSE}
+var_name <- d$vicroads_c
+
+d$var_name_f <- revalue(as.factor(var_name), c("1" = "Yes", "2" = "No", "77" = "Don't know"))
+
+var_name_f <- d$var_name_f
+
+##### Table
+
+t_1 <- d %>%
+          group_by(wave_id, var_name_f) %>%
+            summarise(n = n()) %>%
+            mutate(pct = n / sum(n))
+
+kable(t_1)  %>%   kable_styling(bootstrap_options = "striped", full_width = T, position = "left")
+
+##### Figure
+
+p <- ggplot(d, aes(var_name_f,  fill = var_name_f)) + theme(axis.text.x = element_text(angle=90, vjust = .6)) + 
+  geom_bar() +
+  scale_fill_manual(values = INTERACTPalette3) +
+  guides(fill=FALSE) +
+      ylab("Count") +
+      xlab("Fort Street") +
+      ggtitle("Do you currently use any of the following roads") + 
+  facet_wrap(~ wave_id)
+plot(p)
+```
+
+### Government St
+
+```{r, echo=FALSE}
+var_name <- d$vicroads_d
+
+d$var_name_f <- revalue(as.factor(var_name), c("1" = "Yes", "2" = "No", "77" = "Don't know"))
+
+var_name_f <- d$var_name_f
+
+##### Table
+
+t_1 <- d %>%
+          group_by(wave_id, var_name_f) %>%
+            summarise(n = n()) %>%
+            mutate(pct = n / sum(n))
+
+kable(t_1)  %>%   kable_styling(bootstrap_options = "striped", full_width = T, position = "left")
+
+##### Figure
+
+p <- ggplot(d, aes(var_name_f,  fill = var_name_f)) + theme(axis.text.x = element_text(angle=90, vjust = .6)) + 
+  geom_bar() +
+  scale_fill_manual(values = INTERACTPalette3) +
+  guides(fill=FALSE) +
+      ylab("Count") +
+      xlab("Government Street") +
+      ggtitle("Do you currently use any of the following roads") + 
+  facet_wrap(~ wave_id)
+plot(p)
+```
+
+### Haultain St or Kings Rd
+
+```{r, echo=FALSE}
+var_name <- d$vicroads_e
+
+d$var_name_f <- revalue(as.factor(var_name), c("1" = "Yes", "2" = "No", "77" = "Don't know"))
+
+var_name_f <- d$var_name_f
+
+##### Table
+
+t_1 <- d %>%
+          group_by(wave_id, var_name_f) %>%
+            summarise(n = n()) %>%
+            mutate(pct = n / sum(n))
+
+kable(t_1)  %>%   kable_styling(bootstrap_options = "striped", full_width = T, position = "left")
+
+##### Figure
+
+p <- ggplot(d, aes(var_name_f,  fill = var_name_f)) + theme(axis.text.x = element_text(angle=90, vjust = .6)) + 
+  geom_bar() +
+  scale_fill_manual(values = INTERACTPalette3) +
+  guides(fill=FALSE) +
+      ylab("Count") +
+      xlab("Haultain Street or Kings Road") +
+      ggtitle("Do you currently use any of the following roads") + 
+  facet_wrap(~ wave_id)
+plot(p)
+```
+
+### Pandora Ave
+
+```{r, echo=FALSE}
+var_name <- d$vicroads_f
+
+d$var_name_f <- revalue(as.factor(var_name), c("1" = "Yes", "2" = "No", "77" = "Don't know"))
+
+var_name_f <- d$var_name_f
+
+##### Table
+
+t_1 <- d %>%
+          group_by(wave_id, var_name_f) %>%
+            summarise(n = n()) %>%
+            mutate(pct = n / sum(n))
+
+kable(t_1)  %>%   kable_styling(bootstrap_options = "striped", full_width = T, position = "left")
+
+##### Figure
+
+p <- ggplot(d, aes(var_name_f,  fill = var_name_f)) + theme(axis.text.x = element_text(angle=90, vjust = .6)) + 
+  geom_bar() +
+  scale_fill_manual(values = INTERACTPalette3) +
+  guides(fill=FALSE) +
+      ylab("Count") +
+      xlab("Pandora Avenue") +
+      ggtitle("Do you currently use any of the following roads") + 
+  facet_wrap(~ wave_id)
+plot(p)
+```
+
+### Shelbourne St or Begbie St
+
+```{r, echo=FALSE}
+var_name <- d$vicroads_g
+
+d$var_name_f <- revalue(as.factor(var_name), c("1" = "Yes", "2" = "No", "77" = "Don't know"))
+
+var_name_f <- d$var_name_f
+
+##### Table
+
+t_1 <- d %>%
+          group_by(wave_id, var_name_f) %>%
+            summarise(n = n()) %>%
+            mutate(pct = n / sum(n))
+
+kable(t_1)  %>%   kable_styling(bootstrap_options = "striped", full_width = T, position = "left")
+
+##### Figure
+
+p <- ggplot(d, aes(var_name_f,  fill = var_name_f)) + theme(axis.text.x = element_text(angle=90, vjust = .6)) + 
+  geom_bar() +
+  scale_fill_manual(values = INTERACTPalette3) +
+  guides(fill=FALSE) +
+      ylab("Count") +
+      xlab("Shelbourne Street or Begbie Street") +
+      ggtitle("Do you currently use any of the following roads") + 
+  facet_wrap(~ wave_id)
+plot(p)
+```
+
+### Harbour Rd, Wharf St or Belville St
+
+```{r, echo=FALSE}
+var_name <- d$vicroads_h
+
+d$var_name_f <- revalue(as.factor(var_name), c("1" = "Yes", "2" = "No", "77" = "Don't know"))
+
+var_name_f <- d$var_name_f
+
+##### Table
+
+t_1 <- d %>%
+          group_by(wave_id, var_name_f) %>%
+            summarise(n = n()) %>%
+            mutate(pct = n / sum(n))
+
+kable(t_1)  %>%   kable_styling(bootstrap_options = "striped", full_width = T, position = "left")
+
+##### Figure
+
+p <- ggplot(d, aes(var_name_f,  fill = var_name_f)) + theme(axis.text.x = element_text(angle=90, vjust = .6)) + 
+  geom_bar() +
+  scale_fill_manual(values = INTERACTPalette3) +
+  guides(fill=FALSE) +
+      ylab("Count") +
+      xlab("Harbour Road, Wharf Street, or Belleville Street") +
+      ggtitle("Do you currently use any of the following roads") + 
+  facet_wrap(~ wave_id)
+plot(p)
+```
+
+### Galloping Goose or the E&N Trail
+
+```{r, echo=FALSE}
+var_name <- d$vicroads_i
+
+d$var_name_f <- revalue(as.factor(var_name), c("1" = "Yes", "2" = "No", "77" = "Don't know"))
+
+var_name_f <- d$var_name_f
+
+##### Table
+
+t_1 <- d %>%
+          group_by(wave_id, var_name_f) %>%
+            summarise(n = n()) %>%
+            mutate(pct = n / sum(n))
+
+kable(t_1)  %>%   kable_styling(bootstrap_options = "striped", full_width = T, position = "left")
+
+##### Figure
+
+p <- ggplot(d, aes(var_name_f,  fill = var_name_f)) + theme(axis.text.x = element_text(angle=90, vjust = .6)) + 
+  geom_bar() +
+  scale_fill_manual(values = INTERACTPalette3) +
+  guides(fill=FALSE) +
+      ylab("Count") +
+      xlab("Galloping Goose Trail or the E and N Trail") +
+      ggtitle("Do you currently use any of the following roads") + 
+  facet_wrap(~ wave_id)
+plot(p)
+```
+
+## Q6: How much would you agree with the following statement: "I would like to travel by bicycle more than I do now"?
+
+```{r, echo=FALSE}
+
+var_name <- d$bike_more
+
+d$var_name_f <- revalue(as.factor(var_name), c("1" = "Strongly Agree", "2" = "Somewhat Agree", "3" = "Somewhat Disagree", "4" = "Strongly Disagree", "77" = "Don't Know"))
+
+var_name_f <- d$var_name_f
+
+##### Table
+
+t_1 <- d %>%
+          group_by(wave_id, var_name_f) %>%
+            summarise(n = n()) %>%
+            mutate(pct = n / sum(n))
+
+kable(t_1)  %>%   kable_styling(bootstrap_options = "striped", full_width = T, position = "left")
+
+##### Figure
+
+p <- ggplot(d, aes(var_name_f,  fill = var_name_f)) + theme(axis.text.x = element_text(angle=90, vjust = .6)) + 
+  geom_bar() +
+  scale_fill_manual(values = INTERACTPalette3) +
+  guides(fill=FALSE) +
+      ylab("Count") +
+      xlab("I would like to travel by bicycle more than I do now") +
+      ggtitle("How much would you agree with the following statement") + 
+  facet_wrap(~ wave_id)
+plot(p)
+```
+
+
+## Q7: How comfortable would you feel biking in the following places?
+
+```{r, echo=FALSE}
+var_name <- d$bike_comf_a
+
+d$var_name_f <- revalue(as.factor(var_name), c("1" = "Very uncomfortable", "2" = "	Somewhat uncomfortable", "3" = "Somewhat comfortable", "4" = "Very comfortable", "77" = "Don't Know"))
+
+var_name_f <- d$var_name_f
+
+##### Table
+
+t_1 <- d %>%
+          group_by(wave_id, var_name_f) %>%
+            summarise(n = n()) %>%
+            mutate(pct = n / sum(n))
+
+kable(t_1)  %>%   kable_styling(bootstrap_options = "striped", full_width = T, position = "left")
+
+##### Figure
+
+p <- ggplot(d, aes(var_name_f,  fill = var_name_f)) + theme(axis.text.x = element_text(angle=90, vjust = .6)) + 
+  geom_bar() +
+  scale_fill_manual(values = INTERACTPalette3) +
+  guides(fill=FALSE) +
+      ylab("Count") +
+      xlab("A path or trail separate from the street?") +
+      ggtitle("How comfortable would you feel biking in the following places") + 
+  facet_wrap(~ wave_id)
+plot(p)
+```
